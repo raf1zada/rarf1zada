@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jogo de Matemática</title>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(-45deg, #0c192c, #1e1f29, #3d3e4c, #252535, #1a1b25);
+        background-size: 450% 400%;
+        animation: gradient 15s ease infinite;
+        font-family: Arial, sans-serif; /* Aplicando a fonte globalmente */
+    }
+
+    @keyframes gradient {
+        0% {
+            background-position: 0% 50%;
+        }
+        50% {
+            background-position: 100% 50%;
+        }
+        100% {
+            background-position: 0% 50%;
+        }
+    }
+
+    .particle {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.7);
+        animation: fall 10s linear infinite;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 0; /* Garante que as partículas fiquem atrás do conteúdo do jogo */
+    }
+
+    .particle::after {
+        content: attr(data-content); /* Conteúdo dinâmico do operador */
+    }
+
+    @keyframes fall {
+        0% {
+            transform: translateY(-110vh);
+            opacity: 0;
+        }
+        100% {
+            transform: translateY(110vh);
+            opacity: 1;
+        }
+    }
+
+    #game-container {
+        background-color: #fff;
+        padding: 20px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        text-align: center;
+        border-radius: 10px;
+        width: 80%;
+        max-width: 600px;
+        z-index: 1; /* Garante que o jogo esteja à frente das partículas */
+        position: relative; /* Garante que esteja posicionado corretamente */
+        font-family: Arial, sans-serif; /* Aplicando a fonte no conteúdo do jogo */
+    }
+
+    #score {
+        font-size: 24px;
+        margin-bottom: 20px;
+    }
+
+    #question {
+        font-size: 20px;
+        margin-bottom: 20px;
+    }
+
+    #timer {
+        font-size: 20px;
+        margin-bottom: 20px;
+        color: red;
+    }
+
+    #answer, #name {
+        font-size: 20px;
+        padding: 10px;
+        margin-bottom: 20px;
+        width: calc(100% - 22px);
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-sizing: border-box;
+        font-family: Arial, sans-serif; /* Aplicando a fonte nos inputs */
+    }
+
+    #submit, #submit-name {
+        font-size: 20px;
+        padding: 10px 20px;
+        margin-top: 20px;
+        background-color: #0c192c;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        font-family: Arial, sans-serif; /* Aplicando a fonte nos botões */
+    }
+
+    #submit:hover, #submit-name:hover {
+        background-color: #1a1b25;
+    }
+
+    #ranking {
+        margin-top: 20px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th, td {
+        padding: 10px;
+        border: 1px solid #ddd;
+        font-family: Arial, sans-serif; /* Aplicando a fonte nas células da tabela */
+    }
+
+    th {
+        background-color: #f2f2f2;
+    }
+
+    .medal {
+        width: 20px;
+        margin-right: 5px;
+        vertical-align: middle;
+    }
+
+    .gold-medal {
+        width: 20px;
+        margin-right: 5px;
+        vertical-align: middle;
+    }
+
+    .silver-medal {
+        width: 20px;
+        margin-right: 5px;
+        vertical-align: middle;
+    }
+
+    .bronze-medal {
+        width: 20px;
+        margin-right: 5px;
+        vertical-align: middle;
+    }
+</style>
+</head>
+<body>
+<div id="game-container">
+    <div id="name-container">
+        <input type="text" id="name" placeholder="Digite seu nome">
+        <button id="submit-name">Iniciar Jogo</button>
+    </div>
+    <div id="game" style="display: none;">
+        <div id="score">Pontuação: 0</div>
+        <div id="question">Quanto é 0 + 0?</div>
+        <div id="timer">Tempo restante: 5s</div>
+        <input type="number" id="answer" step="1">
+        <button id="submit">Responder</button>
+    </div>
+    <div id="ranking">
+        <h3>Ranking</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>Posição</th>
+                <th>Nome</th>
+                <th>Pontuação</th>
+                <th>Medalha</th>
+            </tr>
+            </thead>
+            <tbody id="ranking-body">
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Script para carregar e reproduzir áudio do YouTube -->
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+    let player;
+
+    function onYouTubeIframeAPIReady() {
+        player = new YT.Player('player', {
+            height: '0',
+            width: '0',
+            videoId: '1OiRgYzd22I', // ID do vídeo do YouTube
+            events: {
+                'onReady': onPlayerReady,
+                'onStateChange': onPlayerStateChange
+            }
+        });
+    }
+
+    function onPlayerReady(event) {
+        event.target.playVideo(); // Inicia a reprodução assim que estiver pronto
+    }
+
+    function onPlayerStateChange(event) {
+        if (event.data == YT.PlayerState.ENDED) {
+            event.target.playVideo(); // Reinicia a reprodução ao finalizar
+        }
+    }
+</script>
+
+<!-- Script para criar as partículas -->
+<script>
+    // Função para criar partículas
+    function createParticles() {
+        const particleCount = 100; // Quantidade de partículas
+        const body = document.querySelector('body');
+
+        // Array de operadores matemáticos
+        const operators = ['+', '-', '×', '÷'];
+
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.classList.add('particle');
+            particle.setAttribute('data-content', operators[Math.floor(Math.random() * operators.length)]); // Escolhe um operador aleatório
+            particle.style.left = `${Math.random() * 100}vw`; // Posição horizontal aleatória
+            particle.style.animationDuration = `${Math.random() * 2 + 3}s`; // Duração da animação variável
+            particle.style.animationDelay = `${Math.random() * -3}s`; // Atraso da animação variável
+            body.appendChild(particle);
+        }
+    }
+
+    // Chama a função para criar as partículas ao carregar a página
+    window.onload = function() {
+        createParticles();
+        onYouTubeIframeAPIReady(); // Inicia o player do YouTube
+    };
+</script>
+
+<script>
+    let score = 0;
+    let playerName = '';
+    const ranking = [];
+    let timer;
+    let timeLeft = 5;
+    let gameStarted = false;
+
+    function getRandomNumber(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function getRandomOperation() {
+        const operations = ['+', '-', '*', '/'];
+        return operations[Math.floor(Math.random() * operations.length)];
+    }
+
+    function generateQuestion() {
+        let num1, num2, question, correctAnswer;
+        const operation = getRandomOperation();
+
+        switch (operation) {
+            case '+':
+                num1 = getRandomNumber(1, 10);
+                num2 = getRandomNumber(1, 10);
+                question = 'Quanto é ' + num1 + ' + ' + num2 + '?';
+                correctAnswer = num1 + num2;
+                break;
+            case '-':
+                num1 = getRandomNumber(1, 10);
+                num2 = getRandomNumber(1, 10);
+                question = 'Quanto é ' + num1 + ' - ' + num2 + '?';
+                correctAnswer = num1 - num2;
+                break;
+            case '*':
+                num1 = getRandomNumber(1, 10);
+                num2 = getRandomNumber(1, 10);
+                question = 'Quanto é ' + num1 + ' * ' + num2 + '?';
+                correctAnswer = num1 * num2;
+                break;
+            case '/':
+                num2 = getRandomNumber(1, 10);
+                correctAnswer = getRandomNumber(1, 10);
+                num1 = num2 * correctAnswer;
+                question = 'Quanto é ' + num1 + ' / ' + num2 + '?';
+                break;
+        }
+
+        return { question, correctAnswer };
+    }
+
+    function updateRanking() {
+        const rankingBody = document.getElementById('ranking-body');
+        rankingBody.innerHTML = '';
+        ranking.sort((a, b) => b.score - a.score);
+        ranking.forEach((entry, index) => {
+            const row = document.createElement('tr');
+            const positionCell = document.createElement('td');
+            const nameCell = document.createElement('td');
+            const scoreCell = document.createElement('td');
+            const medalCell = document.createElement('td');
+
+            positionCell.textContent = index + 1;
+            nameCell.textContent = entry.name;
+            scoreCell.textContent = entry.score;
+
+            const medalImg = document.createElement('img');
+            medalImg.classList.add('medal');
+
+            if (index === 0) {
+                medalImg.src = 'https://cdn-icons-png.flaticon.com/512/1910/1910476.png';
+                medalImg.alt = 'Gold Medal';
+                medalImg.classList.add('gold-medal');
+            } else if (index === 1) {
+                medalImg.src = 'https://cdn-icons-png.flaticon.com/512/1910/1910479.png';
+                medalImg.alt = 'Silver Medal';
+                medalImg.classList.add('silver-medal');
+            } else if (index === 2) {
+                medalImg.src = 'https://cdn-icons-png.flaticon.com/512/5355/5355547.png';
+                medalImg.alt = 'Bronze Medal';
+                medalImg.classList.add('bronze-medal');
+            }
+
+            medalCell.appendChild(medalImg);
+
+            row.appendChild(positionCell);
+            row.appendChild(nameCell);
+            row.appendChild(scoreCell);
+            row.appendChild(medalCell);
+            rankingBody.appendChild(row);
+        });
+    }
+
+    function startTimer() {
+        timeLeft = 5;
+        document.getElementById('timer').innerText = 'Tempo restante: ' + timeLeft + 's';
+        clearInterval(timer); // Limpa qualquer timer pendente
+        timer = setInterval(() => {
+            timeLeft--;
+            document.getElementById('timer').innerText = 'Tempo restante: ' + timeLeft + 's';
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                alert('Tempo esgotado! Pontuação zerada.');
+                ranking.push({ name: playerName, score: score });
+                updateRanking();
+                score = 0;
+                document.getElementById('score').innerText = 'Pontuação: ' + score;
+                document.getElementById('game').style.display = 'none';
+                document.getElementById('name-container').style.display = 'block';
+                document.getElementById('name').value = ''; // Limpa a caixa de nome
+                gameStarted = false; // Reseta o estado do jogo
+            }
+        }, 1000);
+    }
+
+    function stopTimer() {
+        clearInterval(timer);
+    }
+
+    function updateGame() {
+        const { question, correctAnswer } = generateQuestion();
+        document.getElementById('question').innerText = question;
+        document.getElementById('answer').value = '';
+        startTimer();
+
+        document.getElementById('submit').onclick = function() {
+            const userAnswer = parseInt(document.getElementById('answer').value);
+            stopTimer();
+            if (userAnswer === correctAnswer) {
+                score++;
+                document.getElementById('score').innerText = 'Pontuação: ' + score;
+            } else {
+                alert('Errado! Pontuação zerada.');
+                ranking.push({ name: playerName, score: score });
+                updateRanking();
+                score = 0;
+                document.getElementById('score').innerText = 'Pontuação: ' + score;
+                document.getElementById('game').style.display = 'none';
+                document.getElementById('name-container').style.display = 'block';
+                document.getElementById('name').value = ''; // Limpa a caixa de nome
+                gameStarted = false; // Reseta o estado do jogo
+            }
+            updateGame();
+        };
+    }
+
+    document.getElementById('submit-name').onclick = function() {
+        playerName = document.getElementById('name').value.trim();
+        if (playerName) {
+            if (!gameStarted) {
+                gameStarted = true;
+                document.getElementById('name-container').style.display = 'none';
+                document.getElementById('game').style.display = 'block';
+                updateGame();
+            }
+        } else {
+            alert('Por favor, insira seu nome.');
+        }
+    };
+</script>
+
+<!-- Elemento oculto para carregar o player do YouTube -->
+<div style="display:none;">
+    <div id="player"></div>
+</div>
+
+</body>
+</html>
